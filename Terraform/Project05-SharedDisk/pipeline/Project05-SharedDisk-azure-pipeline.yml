@@ -1,0 +1,95 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+ branches:
+   include:
+     - feature-*
+   exclude:
+     - master
+     - main
+ paths:
+   include:
+     - Terraform/Project05-SharedDisk/init
+     - Terraform/Project05-SharedDisk/main
+     - Terraform/Project05-SharedDisk/tfvars
+
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: Terraform-SP
+
+steps:
+- bash: |
+   # Write your commands here
+   echo "Client ID"
+   echo $ARM_CLIENT_ID
+   echo "Tenant ID"
+   echo $ARM_TENANT_ID
+   echo "Subscription ID"
+   echo $ARM_SUBSCRIPTION_ID
+   echo "Client Secret Length"
+   echo $ARM_CLIENT_SECRET | wc
+   terraform --version
+   terraform init -backend-config='../../init/Project05-SharedDisk/Project05-SharedDisk.ini' -input=false
+   terraform plan -input=false -out=tfplan -var-file='../../tfvars/Project05-SharedDisk/Project05-SharedDisk.tfvars' -no-color
+  workingDirectory: ./Terraform/Project05-SharedDisk/main/Project05-SharedDisk
+  displayName: 'Terraform Plan'
+  env:
+    ARM_CLIENT_SECRET: $(client_secret)
+    ARM_CLIENT_ID: $(client_id)
+    ARM_TENANT_ID: $(tenant_id)
+    ARM_SUBSCRIPTION_ID: $(project_subscription_id)
+    ARM_STORAGE_USE_AZUREAD: true
+
+- task: CopyFiles@2
+  displayName: 'Copy Files *.tf files to ArtifactStagingDirectory'
+  inputs:
+    SourceFolder: 'Terraform/Project05-SharedDisk/main/Project05-SharedDisk'
+    Contents: '*.tf'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/Terraform/Project05-SharedDisk/main/Project05-SharedDisk'
+    CleanTargetFolder: true
+
+- task: CopyFiles@2
+  displayName: 'Copy SSH public key to ArtifactStagingDirectory'
+  inputs:
+    SourceFolder: 'Terraform/Project05-SharedDisk/main/Project05-SharedDisk'
+    Contents: '*.pub'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/Terraform/Project05-SharedDisk/main/Project05-SharedDisk'
+    CleanTargetFolder: false
+
+- task: CopyFiles@2
+  displayName: 'Copy Files *.tfvars files to ArtifactStagingDirectory'
+  inputs:
+    SourceFolder: 'Terraform/Project05-SharedDisk/tfvars/Project05-SharedDisk'
+    Contents: '*.tfvars'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/Terraform/Project05-SharedDisk/tfvars/Project05-SharedDisk'
+    CleanTargetFolder: false
+
+- task: CopyFiles@2
+  displayName: 'Copy Files *.ini files to ArtifactStagingDirectory'
+  inputs:
+    SourceFolder: 'Terraform/Project05-SharedDisk/init/Project05-SharedDisk'
+    Contents: '*.ini'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/Terraform/Project05-SharedDisk/init/Project05-SharedDisk'
+    CleanTargetFolder: false
+
+- task: CopyFiles@2
+  displayName: 'Copy modules files to ArtifactStagingDirectory'
+  inputs:
+    SourceFolder: 'Terraform/Project05-SharedDisk/modules'
+    Contents: '**/*.tf'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/Terraform/Project05-SharedDisk/modules'
+    CleanTargetFolder: false
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish the artifacts'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'Project05-SharedDisk_build'
+    publishLocation: 'Container'
+
